@@ -21,9 +21,6 @@ func (c *Config) Validate() error {
 			return errors.Wrap(err, "local")
 		}
 	}
-	if c.GetRemotePeerId() == "" {
-		return errors.Wrap(peer.ErrPeerIDEmpty, "remote")
-	}
 	if _, err := c.ParseRemotePeerID(); err != nil {
 		return errors.Wrap(err, "remote")
 	}

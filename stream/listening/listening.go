@@ -58,6 +58,9 @@ func NewController(
 	if err != nil {
 		return nil, err
 	}
+	if len(remotePeerID) == 0 {
+		remotePeerID = localPeerID
+	}
 
 	pid := protocol.ID(conf.GetProtocolId())
 	if err := pid.Validate(); err != nil {
@@ -128,10 +131,39 @@ func (c *Controller) acceptPump(ctx context.Context, listener manet.Listener) er
 // openStreamTimeout is the amount of time to wait for the stream to be opened.
 var openStreamTimeout = time.Second * 10
 
+// determineRemotePeer determines where to send a connection.
+func (c *Controller) determineRemotePeer(ctx context.Context) (peer.ID, error) {
+	remotePeerID := c.remotePeerID
+	if len(remotePeerID) != 0 {
+		return remotePeerID, nil
+	}
+
+	// if remote peer ID is empty: connect to the first matched local peer
+	lpeer, peerRef, err := peer.GetPeerWithID(ctx, c.bus, peer.ID(""))
+	if err != nil {
+		if err != context.Canceled {
+			c.le.WithError(err).Warn("unable to determine a peer to forward to")
+		}
+		return "", err
+	}
+	remotePeerID = lpeer.GetPeerID()
+	peerRef.Release()
+	return remotePeerID, nil
+}
+
 // handleConn handles a connection.
 func (c *Controller) handleConn(ctx context.Context, conn manet.Conn) {
 	openCtx, openCtxCancel := context.WithTimeout(ctx, openStreamTimeout)
 	defer openCtxCancel()
+
+	remotePeerID, err := c.determineRemotePeer(ctx)
+	if err != nil {
+		if err != context.Canceled {
+			c.le.WithError(err).Warn("unable to determine remote peer to forward")
+		}
+		conn.Close()
+		return
+	}
 
 	opts := stream.OpenOpts{
 		Reliable:  c.conf.GetReliable(),
@@ -142,13 +174,15 @@ func (c *Controller) handleConn(ctx context.Context, conn manet.Conn) {
 		c.bus,
 		c.protocolID,
 		c.localPeerID,
-		c.remotePeerID,
+		remotePeerID,
 		c.conf.GetTransportId(),
 		opts,
 	)
 	if err != nil {
 		conn.Close()
-		// c.le.WithError(err).Warn("unable to open stream to handle conn")
+		if err != context.Canceled {
+			c.le.WithError(err).Warn("unable to open stream to handle conn")
+		}
 		return
 	}
 

@@ -1,6 +1,16 @@
-udp:
-  config:
-    dialers: {}
-    listenAddr: :5112
-  id: bifrost/udp/1
+# Listen on localhost:8081 and forward to localhost:8082
+listening:
+  id: bifrost/stream/listening/1
   revision: 1
+  config:
+    protocolId: my/http/forwarding/1
+    listenMultiaddr: "/ip4/127.0.0.1/tcp/8081"
+    reliable: true
+    encrypted: true
+
+forwarding:
+  id: bifrost/stream/forwarding/1
+  revision: 1
+  config:
+    protocolId: my/http/forwarding/1
+    targetMultiaddr: "/ip4/127.0.0.1/tcp/8002"

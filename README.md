@@ -100,18 +100,22 @@ bifrost daemon --write-config --hold-open-links --pubsub floodsub --api-listen :
 An example of a ConfigSet in YAML format for the daemon: `bifrost_daemon.yaml`:
 
 ```yaml
-# Start a UDP listener on port 5112.
-my-udp:
+# Listen on localhost:8081 and forward to localhost:8082
+listening:
+  id: bifrost/stream/listening/1
+  revision: 1
   config:
-    listenAddr: :5112
-  id: bifrost/udp/1
-  revision: 1
+    protocolId: my/http/forwarding/1
+    listenMultiaddr: "/ip4/127.0.0.1/tcp/8081"
+    reliable: true
+    encrypted: true
 
-# Use the floodsub driver for PubSub.
-pubsub:
-  config: {}
-  id: bifrost/floodsub/1
+forwarding:
+  id: bifrost/stream/forwarding/1
   revision: 1
+  config:
+    protocolId: my/http/forwarding/1
+    targetMultiaddr: "/ip4/127.0.0.1/tcp/8002"
 ```
 
 ### Client CLI
